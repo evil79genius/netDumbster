@@ -12,6 +12,11 @@ public class SmtpMessage
     private readonly RawSmtpMessage rawSmtpMessage;
 
     /// <summary>
+    /// Creates an uninitialized new message.
+    /// </summary>
+    public SmtpMessage() { }
+
+    /// <summary>
     /// Creates a new message.
     /// </summary>
     public SmtpMessage(RawSmtpMessage rawSmtpMessage)

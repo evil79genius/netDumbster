@@ -16,7 +16,7 @@ public class SimpleSmtpServer : IDisposable
     /// <summary>
     /// Stores all of the email received since this instance started up.
     /// </summary>
-    private readonly ConcurrentBag<SmtpMessage> smtpMessageStore = [];
+    private readonly IMessageStore smtpMessageStore;
 
     /// <summary>
     ///  CancellationTokenSource to stop server
@@ -38,7 +38,17 @@ public class SimpleSmtpServer : IDisposable
     }
 
     /// <summary>
-    /// Prevents a default instance of the <see cref="SimpleSmtpServer"/> class from being created.
+    /// Initializes a new instance of the <see cref="SimpleSmtpServer"/> class.
+    /// </summary>
+    /// <param name="messageStore">An instance of an object implementing IMessageStore interface.</param>
+    private SimpleSmtpServer(IMessageStore smtpMessageStore)
+        : this(Configuration.Configure().WithRandomPort().EnableMessageStore(smtpMessageStore != null))
+    {
+        this.smtpMessageStore = smtpMessageStore;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SimpleSmtpServer"/> class.
     /// </summary>
     /// <param name="port">The port.</param>
     /// <param name="useMessageStore">if set to <c>true</c> [use message store].</param>
@@ -47,9 +57,24 @@ public class SimpleSmtpServer : IDisposable
     {
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SimpleSmtpServer"/> class.
+    /// </summary>
+    /// <param name="port">The port.</param>
+    /// <param name="messageStore">An instance of an object implementing IMessageStore interface.</param>
+    private SimpleSmtpServer(int port, IMessageStore smtpMessageStore)
+        : this(Configuration.Configure().WithPort(port).EnableMessageStore(smtpMessageStore != null))
+    {
+        this.smtpMessageStore = smtpMessageStore;
+    }
+
     private SimpleSmtpServer(Configuration configuration)
     {
         Configuration = configuration;
+        if (configuration.UseMessageStore)
+        {
+            smtpMessageStore = new SimpleSmtpMessageStore();
+        }
         ServerReady = new AutoResetEvent(false);
     }
 
@@ -123,6 +148,19 @@ public class SimpleSmtpServer : IDisposable
     }
 
     /// <summary>
+    /// Starts the specified use message store.
+    /// </summary>
+    /// <param name="smtpMessageStore">An instance of an object implementing IMessageStore interface.</param>
+    /// <returns></returns>
+    public static SimpleSmtpServer Start(IMessageStore smtpMessageStore)
+    {
+        var server = new SimpleSmtpServer(smtpMessageStore);
+        server.StartListening();
+        server.ServerReady.WaitOne();
+        return server;
+    }
+
+    /// <summary>
     /// Starts server listening to the specified port.
     /// </summary>
     /// <param name="port">The port.</param>
@@ -143,6 +181,19 @@ public class SimpleSmtpServer : IDisposable
         return Start(Configuration.Configure().WithPort(port).EnableMessageStore(useMessageStore));
     }
 
+    /// <summary>
+    /// Starts the specified port.
+    /// </summary>
+    /// <param name="port">The port.</param>
+    /// <param name="smtpMessageStore">An instance of an object implementing IMessageStore interface.</param>
+    public static SimpleSmtpServer Start(int port, IMessageStore smtpMessageStore)
+    {
+        var server = new SimpleSmtpServer(port, smtpMessageStore);
+        server.StartListening();
+        server.ServerReady.WaitOne();
+        return server;
+    }
+
     internal static SimpleSmtpServer Start(Configuration configuration)
     {
         var server = new SimpleSmtpServer(configuration);
@@ -158,10 +209,7 @@ public class SimpleSmtpServer : IDisposable
     {
         lock (this)
         {
-            while (!smtpMessageStore.IsEmpty)
-            {
-                smtpMessageStore.TryTake(out SmtpMessage itemToRemove);
-            }
+            smtpMessageStore.Clear();
         }
     }
 

@@ -67,7 +67,7 @@ public class SmtpProcessor
     /// <summary>
     /// List of received messages (emails).
     /// </summary>
-    readonly ConcurrentBag<SmtpMessage> smtpMessageStore;
+    readonly IMessageStore smtpMessageStore;
 
     /// <summary>The message to display to the client when they first connect.</summary>
     private string welcomeMessage = string.Empty;
@@ -83,7 +83,7 @@ public class SmtpProcessor
     /// be a valid domain name, but it will be included in the Welcome Message
     /// and HELO response.
     /// </param>
-    public SmtpProcessor(string domain, ConcurrentBag<SmtpMessage> smtpMessageStore)
+    public SmtpProcessor(string domain, IMessageStore smtpMessageStore)
     {
         this.smtpMessageStore = smtpMessageStore;
         Initialize(domain);
@@ -193,12 +193,11 @@ public class SmtpProcessor
         {
             lock (smtpMessageStore)
             {
-                var smtpMessage = new SmtpMessage(rawSmtpMessage);
-
-                smtpMessageStore.Add(smtpMessage);
+                smtpMessageStore.Add(rawSmtpMessage);
 
                 if (MessageReceived is not null)
                 {
+                    var smtpMessage = new SmtpMessage(rawSmtpMessage);
                     MessageReceived(this, new MessageReceivedArgs(smtpMessage));
                 }
             }
